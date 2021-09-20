@@ -1,0 +1,388 @@
+---
+title: "Data624_HW2"
+author: "Alexis Mekueko"
+date: "9/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r load-packages, results='hide',warning=FALSE, message=FALSE, echo=FALSE}
+
+##library(tidyverse) #loading all library needed for this assignment
+#remove.packages(tidyverse)
+#library(openintro)
+#library(lahman) #database for baseball
+library(caret)
+library(knitr)
+#library(markdown)
+#library(rmarkdown)
+library(dplyr)
+library(tidyr)
+library(naniar)
+library(reshape)
+library(ggplot2)
+library(qqplotr)
+library(stats)
+library(statsr)
+library(GGally)
+library(pdftools)
+library(correlation)
+library(Metrics)
+library(e1071)
+library(rocc)
+library(pROC)
+library(plm)
+library(car)
+#library(VIF)
+#library(MASS)
+#library(AICcmodavg)
+#library(gridExtra)
+#library(ggpubr)
+#library(glmulti)
+
+#install.packages("datarobot", dependencies = TRUE)
+
+library(datarobot)
+#install.packages("fpp3", dependencies = TRUE)
+library(fpp3)
+#install.packages("USgas", dependencies = TRUE)
+library(USgas)
+library(MASS)
+library(forecast)
+
+```
+
+
+[Github Link](https://github.com/asmozo24/Data624_HW1)
+[Web Link](https://rpubs.com/amekueko/808392)
+
+
+
+## Exercise 1
+Consider the GDP information in global_economy. Plot the GDP per capita for each country over time. Which country has the highest GDP per capita? How has this changed over time?
+
+```{r mychunck2, fig.width = 10, fig.height = 10}
+
+View(global_economy)
+#  a lot of missing data
+dim(global_economy)
+sum(is.na(global_economy))
+
+# missing values issue..
+max(global_economy$GDP)
+max(global_economy$Population)
+#9004448/9003
+
+global_economy %>%
+  mutate(GDP_Per_Capital = GDP/Population) %>%
+  autoplot(GDP_Per_Capital) +   labs(title= "GDP per capital", y = "Currency in US Dollars")+
+  theme(legend.position = "none")
+
+print("When applying legend to the right, legend overshadow the plot , so legend = none to remove legend...but we can plot the top 20 countries GDP per capital ")
+
+gdp1 <- global_economy %>%
+  mutate(GDP_Per_Capital = GDP/Population) %>%
+  #arrange(desc(GDP_Per_Capital)) %>%
+  #top_n(15)%>%
+  filter(GDP_Per_Capital > 100000) %>%# adjusting the legend
+  autoplot(GDP_Per_Capital) +   labs(title= "GDP per capital", y = "Currency in US Dollars")
+gdp1
+
+print("Highest GDP per Capital is Monaco since around 2003, even in 2015 they lost a small the lead to Liechenstein and quickly regain their lead position")
+
+```
+
+## Exercise 2
+
+For each of the following series, make a graph of the data. If transforming seems appropriate, do so and describe the effect.
+
+United States GDP from global_economy. 
+Slaughter of Victorian “Bulls, bullocks and steers” in aus_livestock.
+Victorian Electricity Demand from vic_elec. 
+Gas production from aus_production.
+
+```{r mychunck3, fig.width = 10, fig.height = 10}
+
+gdp_USA <- global_economy %>%
+  #mutate(GDP_Per_Capital = GDP/Population) %>%
+  #arrange(desc(GDP_Per_Capital)) %>%
+  #top_n(15)%>%
+  filter (Country =="United States") %>% #filter(GDP_Per_Capital > 100000) %>%# adjusting the legend
+  autoplot(GDP) +   labs(title= "USA GDP", y = "Currency in US Dollars")
+gdp_USA
+
+print("The curve looks like abline or close to straigth line, there is no need to transform this plot...")
+
+max(global_economy$Year)
+min(global_economy$Year)
+
+gdp_USA2 <- global_economy %>%
+  #mutate(GDP_Per_Capital = GDP/Population) %>%
+  #arrange(desc(GDP_Per_Capital)) %>%
+  #top_n(15)%>%
+  filter (Country =="United States") %>% #filter(GDP_Per_Capital > 100000) %>%# adjusting the legend
+  autoplot(log(GDP)) +  labs(title= "USA GDP from 1960 to 2017", y = "Currency in US Dollars")
+gdp_USA2
+
+# GDP1 <- global_economy %>%
+#   filter (Country =="United States") %>% 
+#   autoplot(GDP)
+
+# fit <- data.frame(data=as.matrix(fitted(GDP1)), date=time(fitted(GDP1)))
+# autoplot(GDP1) + geom_line(data = fit,aes(date,data), col = "red")
+
+
+view(aus_livestock)
+
+aus <- aus_livestock %>%
+       group_by(Animal) %>%
+       filter(Animal == "Bulls, bullocks and steers") %>%
+       summarise(number_of_animal = sum(Count)) %>%
+       autoplot(number_of_animal) + labs(title = "Slaughter of Victorian “Bulls, bullocks and steers” in aus_livestock", y = "Number_of_Animals Slaughtered")
+aus
+
+print("According to the plot , from January 1980 till January 2020, about 350k of Bulls, bullocks and steers were slaughtered in Victoria, AUstria ")
+
+
+view(vic_elec)
+
+# vic_elec1 <- vic_elec %>%
+#              mutate(NewDate = as.POSIXct(Date, format = "%Y-%m-%d"))%>%
+#              format(NewDate, format = "%Y")
+vic_elec1 <- vic_elec
+vic_elec1$NewDate <- format(vic_elec$Date, format = "%Y")
+
+
+2012-01-01
+
+view(vic_elec1)
+
+elec1 <- vic_elec1 %>%
+        group_by(NewDate)%>%
+        summarise(Electric_Demand = sum(Demand))%>%
+        autoplot(Electric_Demand)+labs(title = "Victorian Electricity Demand", y="Electric Demand")
+elec1
+         
+print("Electric demand in Victoria from 2012 to 2015 range in 4000 to 6000 MW")
+
+view(aus_production)
+
+aus1 <- aus_production %>%
+        autoplot(Gas) + labs(title = "Historical Data on Gas Production in AUstria by Year", y = "Gas in Volume" )
+aus1
+
+
+```
+
+## Exercise 3
+Why is a Box-Cox transformation unhelpful for the canadian_gas data?
+
+```{r mychunck4, fig.width = 10, fig.height = 10}
+
+view(canadian_gas)
+sum(is.na(canadian_gas))
+
+cand1 <- canadian_gas %>%
+        autoplot(Volume) + labs(title = "Historical Data on Gas Production in Canada by Year", y = "Gas in Volume" )
+cand1
+
+print("Looking at this plot. it is hard to tell whether the box_cox () would have an effect due to the small variation in gas volume each year and max,min,quartile are not observed in one reference point. Let's recall what a box_cox () is: a box-cox transformation is a commonly used method for transforming a non-normally distributed dataset into a more normally distributed one.")
+
+
+
+#Let's find optimal lambda for Box-Cox transformation 
+# bc1 <- box_cox(Volume ~ Month)
+# (lambda <- bc1$Month[which.max(bc1$Volume)])
+
+#(lambda <- BoxCox.lambda(canadian_gas))
+#fit <- snaive(canadian_gas, lambda=1/3)
+#autoplot(BoxCox(canadian_gas, lambda))
+
+
+# to find optimal lambda
+#lambda = BoxCox.lambda( canadian_gas )
+# now to transform vector
+#trans.canadian_gas = BoxCox( canadian_gas, lambda)
+
+
+lambda <- canadian_gas %>%
+          features(Volume, features = guerrero)#%>%
+          #box_cox(Volume)%>%
+          canadian_gas %>%
+          autoplot(box_cox(Volume, lambda))
+print("Not a significant change after applying box_cox, but parameter lambda has effect on normalizing the data")
+          
+          canadian_gas %>%
+          autoplot(box_cox(Volume, lambda = 1.2))
+#qqnorm(model$residuals)
+#qqline(model$residuals)
+
+```
+
+## Exercise 4
+
+What Box-Cox transformation would you select for your retail data (from Exercise 8 in Section 2.10)?
+
+
+```{r mychunck5a, fig.width = 10, fig.height = 10}
+
+set.seed(53566)
+
+view(aus_retail)
+
+myseries <- aus_retail %>%
+  filter(`Series ID` == sample(aus_retail$`Series ID`,1))
+
+myseries %>%
+autoplot(Turnover)
+
+print("We selected to apply box_cox on Turnover")
+myseries %>%
+          autoplot(box_cox(Turnover, lambda = 0.3))
+
+
+```
+
+
+## Exercise 5
+
+For the following series, find an appropriate Box-Cox transformation in order to stabilise the variance. Tobacco from aus_production, Economy class passengers between Melbourne and Sydney from ansett, and Pedestrian counts at Southern Cross Station from pedestrian.
+
+```{r mychunck5b, fig.width = 10, fig.height = 10}
+
+tobacco <- aus_production %>%
+        autoplot(Tobacco) + labs(title = "Historical Data on Tobacco Consumption in AUstria by Year", y = "Tobaccom Volume" )
+tobacco
+
+
+lambdaT <- aus_production %>%
+          features(Tobacco, features = guerrero)
+
+tobacco1 <- aus_production %>%
+               autoplot(box_cox(Tobacco, lambdaT)) + labs(title = "Historical Data on Tobacco Consumption in AUstria by Year", y = "Tobaccom Volume" )
+tobacco1
+
+lambdaP <- ansett %>%
+           filter( Class == "Economy" & Airports == "MEL-SYD")%>%
+           features(Passengers, features = guerrero) %>%
+           pull(lambda_guerrero)
+
+ans1 <- ansett %>%
+       filter( Class == "Economy" & Airports == "MEL-SYD")%>%
+       autoplot(box_cox(Passengers, lambdaP)) + labs(title = " Economy class passengers between Melbourne and Sydney", y = "Passengers Volume" )
+ans1                        
+                                         
+ 
+view(pedestrian)
+lambdaPed <- pedestrian %>%
+           filter( Sensor == "Southern Cross Station")%>%
+           features(Sensor, features = guerrero) %>%
+           pull(lambda_guerrero)
+
+pedes1 <- pedestrian %>%
+       filter( Sensor == "Southern Cross Station")%>%
+       autoplot(box_cox(Count, lambdaPed)) + labs(title = " Economy class passengers between Melbourne and Sydney", y = "Passengers Volume" )
+pedes1                        
+      
+                
+```
+
+## Exercise 6 
+Show that a  3×5  MA is equivalent to a 7-term weighted moving average with weights of 0.067, 0.133, 0.200, 0.200, 0.200, 0.133, and 0.067.
+
+## Exercise 7
+
+Consider the last five years of the Gas data from aus_production.
+
+gas <- tail(aus_production, 5*4) %>% select(Gas)
+Plot the time series. Can you identify seasonal fluctuations and/or a trend-cycle?
+Use classical_decomposition with type=multiplicative to calculate the trend-cycle and seasonal indices.
+Do the results support the graphical interpretation from part a?
+Compute and plot the seasonally adjusted data.
+Change one observation to be an outlier (e.g., add 300 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+```{r mychunck6, fig.width = 10, fig.height = 10}
+
+require(graphics)
+print("a-Plot the time series. Can you identify seasonal fluctuations and/or a trend-cycle? The trend is upward each season")
+gas <- tail(aus_production, 5*4) %>% 
+  dplyr::select(Gas)
+
+gas %>%
+  autoplot()+labs(title = " Historical Data on Gas Consumption in Austria  ", y = "Gas Volume" )
+
+print("Use classical_decomposition with type=multiplicative to calculate the trend-cycle and seasonal indices.")
+
+gas1a <- as_tsibble (gas) %>% 
+    model(classical_decomposition(type = 'multiplicative'))%>%
+    components()%>%
+    autoplot ()+labs(title = " Historical Data on Gas Consumption in Austria  ", y = "Gas Volume" )
+gas1a
+
+print("Do the results support the graphical interpretation from part a? yes, it does.")
+
+print("Compute and plot the seasonally adjusted data.n\ The red line is the adjusted data")
+
+as_tsibble(gas) %>% 
+     model(classical_decomposition(type ="multiplicative") )%>%
+     components() %>% 
+     as_tsibble() %>%
+     autoplot() + geom_line(aes(y=season_adjust), colour = "red") +labs(title = " Historical Data on Gas Consumption in Austria  ", y = "Gas Volume" ) 
+
+print("Change one observation to be an outlier (e.g., add 300 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?")
+
+
+gas$Gas[5]<-gas$Gas[5]+300
+
+as_tsibble(gas) %>% 
+                model(classical_decomposition(type ="multiplicative") )%>% 
+                components() %>%
+                as_tsibble() %>%
+                autoplot() +geom_line(aes(y=season_adjust), colour = "red")+labs(title = " Historical Data on Gas Consumption in Austria  ", y = "Gas Volume" ) 
+
+print("Does it make any difference if the outlier is near the end rather than in the middle of the time series?")
+
+gas$Gas[18]<-gas$Gas[18]+300
+
+as_tsibble(gas) %>% 
+                model(classical_decomposition(type ="multiplicative") )%>% 
+                components() %>%
+                as_tsibble() %>%
+                autoplot() +geom_line(aes(y=season_adjust), colour = "red")+labs(title = " Historical Data on Gas Consumption in Austria  ", y = "Gas Volume" ) 
+
+print("Does it make any difference if the outlier is near the end rather than in the middle of the time series? Yes. The outliers effect depends on where it is located")
+
+
+```
+
+## Exercise 8
+Recall your retail time series data (from Exercise 8 in Section 2.10). Decompose the series using X-11. Does it reveal any outliers, or unusual features that you had not noticed previously?
+
+```{r mychunck5c, fig.width = 10, fig.height = 10}
+
+x11a <- myseries %>%
+        model(x11 = X_13ARIMA_SEATS(Turnover ~ x11())) %>%
+        components()
+
+autoplot(x11a)
+
+
+```
+
+There are some outliers around 2010 Jan, and some around 1995. but we has not noticed unusual features. 
+
+
+## Exercise 9
+
+Figures 3.19 and 3.20 show the result of decomposing the number of persons in the civilian labour force in Australia each month from February 1978 to August 1995.
+
+a-The result of decomposing of the number of persons in the civilian labour force in Australia shows data from February 1978 to August 1995 with upward trend. The index graphic does show some outliers around 1991/1992. This must has been a deep downfall but was quickly rebound to continue around the zero line. The value = trend+season_year+remainder shows a net growth of (9000/6500) 138.46% for the course over 17 years. The trend line does not a sudden peak during this progression but rather a smooth growth year after year. 
+
+b-Is the recession of 1991/1992 visible in the estimated components? We suspect the outlier or the sharp downfall around 1991/1992 might have been the recession time. Now, there is a need to zoom in within that [1991, 1992] to appreciate the event before we can fully call it a recession time. Now, recession often comes with a drop in the GDP. so perhaps other factors(information)support the downfall. 
+
+
+
